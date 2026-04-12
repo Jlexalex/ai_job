@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # setup-erp-project.sh
-# Creates the "ERP Core" GitHub Project v2 with custom fields and Sprint 1 issues.
+# Creates the erp-core repo, "ERP Core" GitHub Project v2 with custom fields,
+# Sprint 1 issues, and links everything together.
 #
 # Prerequisites:
-#   - gh CLI authenticated (run `gh auth login` first)
-#   - Repo issues enabled (Settings > General > Features > Issues)
+#   - gh CLI authenticated with project scope:
+#     gh auth login
+#     gh auth refresh -s project
 #
 # Usage:
 #   chmod +x scripts/setup-erp-project.sh
@@ -13,18 +15,31 @@
 set -euo pipefail
 
 OWNER="Jlexalex"
-REPO="ai_job"
+REPO="erp-core"
 
 echo "=== ERP Core Project Setup ==="
 echo ""
 
-# ── 1. Create labels ─────────────────────────────────────────────────────────
+# ── 1. Create repository ─────────────────────────────────────────────────────
+echo "Creating repository $OWNER/$REPO..."
+if gh repo view "$OWNER/$REPO" &>/dev/null; then
+  echo "  Repository already exists, skipping."
+else
+  gh repo create "$REPO" \
+    --public \
+    --description "ERP Core - Base document model, state machine engine, FastAPI REST API, PostgreSQL schema" \
+    --add-readme
+  echo "  Repository created."
+fi
+
+# ── 2. Create labels ─────────────────────────────────────────────────────────
+echo ""
 echo "Creating labels..."
 gh label create "sprint-1" --repo "$OWNER/$REPO" --color "1d76db" --description "Sprint 1" --force 2>/dev/null || true
 gh label create "erp-core" --repo "$OWNER/$REPO" --color "0e8a16" --description "ERP Core module" --force 2>/dev/null || true
 echo "  Labels created."
 
-# ── 2. Create GitHub Project v2 ──────────────────────────────────────────────
+# ── 3. Create GitHub Project v2 ──────────────────────────────────────────────
 echo ""
 echo "Creating GitHub Project v2 'ERP Core'..."
 
@@ -37,7 +52,7 @@ if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
 fi
 echo "  Project created (ID: $PROJECT_ID)"
 
-# ── 3. Add custom fields ─────────────────────────────────────────────────────
+# ── 4. Add custom fields ─────────────────────────────────────────────────────
 echo ""
 echo "Adding custom fields..."
 
@@ -47,7 +62,7 @@ gh project field-create "$PROJECT_ID" \
   --name "Priority" \
   --data-type "SINGLE_SELECT" \
   --single-select-options "High,Medium,Low"
-echo "  Priority field added."
+echo "  Priority field added (High, Medium, Low)."
 
 # Estimate (number)
 gh project field-create "$PROJECT_ID" \
@@ -64,7 +79,7 @@ gh project field-create "$PROJECT_ID" \
   --iteration-duration 14
 echo "  Sprint field added (2-week iterations)."
 
-# ── 4. Create Sprint 1 issues ────────────────────────────────────────────────
+# ── 5. Create Sprint 1 issues ────────────────────────────────────────────────
 echo ""
 echo "Creating Sprint 1 issues..."
 
@@ -105,7 +120,7 @@ for i in "${!ISSUE_TITLES[@]}"; do
   echo "  #$ISSUE_NUM: $TITLE"
 done
 
-# ── 5. Add issues to the project ─────────────────────────────────────────────
+# ── 6. Add issues to the project ─────────────────────────────────────────────
 echo ""
 echo "Adding issues to the project..."
 
@@ -117,14 +132,26 @@ for ISSUE_NUM in "${ISSUE_NUMBERS[@]}"; do
   echo "  Issue #$ISSUE_NUM added to project (item: $ITEM_ID)"
 done
 
+# ── 7. Link repo to project ──────────────────────────────────────────────────
+echo ""
+echo "Linking repository to project..."
+gh project link "$PROJECT_ID" --owner "$OWNER" --repo "$OWNER/$REPO" 2>/dev/null || true
+echo "  Repository linked."
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
-echo "=== Setup Complete ==="
+echo "========================================="
+echo "  Setup Complete!"
+echo "========================================="
 echo ""
-echo "Project URL: https://github.com/users/$OWNER/projects/"
-echo "Issues:      https://github.com/$OWNER/$REPO/issues"
+echo "  Project:  https://github.com/users/$OWNER/projects/"
+echo "  Repo:     https://github.com/$OWNER/$REPO"
+echo "  Issues:   https://github.com/$OWNER/$REPO/issues"
+echo ""
+echo "  Custom fields: Priority (High/Medium/Low), Estimate (number), Sprint (2-week iterations)"
+echo "  Issues:   7 Sprint 1 tasks created and added to project"
 echo ""
 echo "Next steps:"
-echo "  1. Open the project board and verify custom fields"
-echo "  2. Set Priority and Estimate values for each issue"
-echo "  3. Assign issues to Sprint 1 iteration"
+echo "  1. Open the project board and assign Priority/Estimate to each issue"
+echo "  2. Assign issues to Sprint 1 iteration"
+echo "  3. Clone the repo: git clone git@github.com:$OWNER/$REPO.git"
